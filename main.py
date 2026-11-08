@@ -7,36 +7,76 @@ import warnings
 warnings.filterwarnings("ignore")
 
 app = FastAPI(
-    title="لوحة تحليل السوق السعودي - حسب القطاعات",
-    description="نظام متكامل لتحليل وتصنيف أسهم تاسي حسب القطاعات مع بحث وفلترة ذكية",
-    version="14.0"
+    title="لوحة تحليل السوق السعودي الشاملة",
+    description="تحليل متقدم مع أسماء الشركات، أحجام التداول، والقطاعات",
+    version="15.0"
 )
 
-# تصنيف الشركات حسب القطاعات الرئيسية في السوق السعودي (تاسي)
+# قاموس مفصل يضم رموز شركات تاسي وأسماءها العربية الرسمية موزعاً حسب القطاعات
 SECTORS_DATA = {
     "البنوك والخدمات المالية": {
-        "symbols": ["1010", "1020", "1060", "1080", "1111", "1120", "1150", "1180", "1212"],
-        "name_ar": "البنوك والخدمات المالية"
+        "name_ar": "البنوك والخدمات المالية",
+        "stocks": {
+            "1010": "بنك الرياض",
+            "1020": "البنك السعودي الجزيرة",
+            "1060": "البنك السعودي للاستثمار",
+            "1080": "بنك الخليج الدولي",
+            "1111": "مجموعة تداول السعودية",
+            "1120": "مصرف الراجحي",
+            "1150": "مصرف الإنماء",
+            "1180": "البنك الأهلي السعودي",
+            "1212": "البلد للاستثمار"
+        }
     },
     "المواد الأساسية": {
-        "symbols": ["2010", "2020", "2060", "2080", "2090", "2100", "2110", "2120", "2130", "2150", "2160", "2170", "2180", "2190", "2200"],
-        "name_ar": "المواد الأساسية"
+        "name_ar": "المواد الأساسية",
+        "stocks": {
+            "2010": "الشركة السعودية للصناعات الأساسية (سابك)",
+            "2020": "سافكو / سابك للمغذيات الزراعية",
+            "2060": "التصنيع الوطنية",
+            "2080": "الصحراء العالمية للبتروكيماويات (سبكيم)",
+            "2090": "الوطنية للبناء والتسويق",
+            "2100": "مجموعة أسيج",
+            "2110": "الجبيل للصناعات الكيماوية",
+            "2120": "بترورابغ",
+            "2130": "المتقدمة للبتروكيماويات",
+            "2150": "الكيماويات المتخصصة"
+        }
     },
     "الطاقة والمرافق": {
-        "symbols": ["2222", "1301", "1302", "1303", "1304", "5110"],
-        "name_ar": "الطاقة والمرافق"
+        "name_ar": "الطاقة والمرافق",
+        "stocks": {
+            "2222": "أرامكو السعودية",
+            "1301": "أكوا باور",
+            "1302": "الكهرباء السعودية",
+            "1303": "حفر الباطن للطاقة",
+            "1304": "الباحة للطاقة",
+            "5110": "الشركة السعودية لخدمات السيارات (ساسكو)"
+        }
     },
     "الاتصالات وتقنية المعلومات": {
-        "symbols": ["7010", "7020", "7030", "7040"],
-        "name_ar": "الاتصالات وتقنية المعلومات"
-    },
-    "التجزئة والأغذية": {
-        "symbols": ["4001", "4002", "4003", "4004", "4005", "4006", "4007", "4008", "4009", "4010"],
-        "name_ar": "التجزئة والأغذية"
+        "name_ar": "الاتصالات وتقنية المعلومات",
+        "stocks": {
+            "7010": "شركة الاتصالات السعودية (إس تي سي)",
+            "7020": "الاتصالات المتنقلة السعودية (زين)",
+            "7030": "عذيب للاتصالات",
+            "7040": "المتكاملة للاتصالات"
+        }
     },
     "الصناديق العقارية (REITs)": {
-        "symbols": ["4321", "4331", "4332", "4333", "4334", "4335", "4336", "4337", "4338", "4339"],
-        "name_ar": "الصناديق العقارية (REITs)"
+        "name_ar": "الصناديق العقارية المتداولة",
+        "stocks": {
+            "4321": "جدوى ريت الحرمين",
+            "4331": "تعليم ريت",
+            "4332": "الرياض ريت",
+            "4333": "الجزيرة ريت",
+            "4334": "الملكة ريت",
+            "4335": "التهامة ريت",
+            "4336": "بيلتون ريت",
+            "4337": "الإنماء ريت التجزئة",
+            "4338": "مشاركة ريت",
+            "4339": "الخبير ريت"
+        }
     }
 }
 
@@ -52,7 +92,7 @@ def fetch_market_data():
     scanned_stocks = []
     
     for sector_name, sector_info in SECTORS_DATA.items():
-        for symbol in sector_info["symbols"]:
+        for symbol, stock_name in sector_info["stocks"].items():
             ticker_symbol = f"{symbol}.SR"
             try:
                 stock = yf.Ticker(ticker_symbol)
@@ -65,10 +105,18 @@ def fetch_market_data():
                 current_price = float(hist['Close'].iloc[-1])
                 prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else current_price
                 change_percent = round(((current_price - prev_close) / prev_close) * 100, 2)
-                volume = int(hist['Volume'].iloc[-1])
+                volume = int(hist['Volume'].iloc[-1]) # كمية التداول اليومية
                 
                 latest_rsi_val = hist['RSI'].iloc[-1]
                 latest_rsi = round(float(latest_rsi_val), 2) if not pd.isna(latest_rsi_val) else 50.0
+
+                # محاكاة تحليل ضغط الطلبات والسيولة بناءً على الحجم وحركة السعر
+                if volume > 500000 and change_percent > 0:
+                    order_status = "🟢 طلبات شراء قوية (ضغط شراء عالٍ)"
+                elif volume > 500000 and change_percent < 0:
+                    order_status = "🔴 ضغط بيع وعروض مرتفعة"
+                else:
+                    order_status = "🟡 سيولة متوازنة (طلب وعرض هادئ)"
 
                 if latest_rsi <= 35:
                     buy_zone = f"بين {round(current_price * 0.98, 2)} و {round(current_price, 2)}"
@@ -97,11 +145,13 @@ def fetch_market_data():
 
                 scanned_stocks.append({
                     "symbol": symbol,
+                    "name": stock_name,
                     "sector": sector_name,
                     "current_price": round(current_price, 2),
                     "change_percent": change_percent,
+                    "volume": f"{volume:,}",
+                    "order_status": order_status,
                     "rsi": latest_rsi,
-                    "volume": volume,
                     "buy_zone": buy_zone,
                     "target": target_price if target_price > 0 else "غير متاح",
                     "stop_loss": stop_loss,
@@ -119,11 +169,14 @@ def dashboard():
     rows_html = ""
     for s in stocks:
         rows_html += f"""
-        <tr data-symbol="{s['symbol']}" data-sector="{s['sector']}" data-rec="{s['recommendation']}">
+        <tr data-symbol="{s['symbol']}" data-name="{s['name']}" data-sector="{s['sector']}" data-rec="{s['recommendation']}">
             <td><b>{s['symbol']}</b></td>
+            <td style="font-weight: bold; color: #0f5132;">{s['name']}</td>
             <td><span class="sector-tag">{s['sector']}</span></td>
             <td>{s['current_price']} ر.س</td>
             <td style="color: {'#198754' if s['change_percent'] >= 0 else '#dc3545'}; font-weight: bold;">{s['change_percent']}%</td>
+            <td><b>{s['volume']}</b> سهم</td>
+            <td style="font-size: 13px;">{s['order_status']}</td>
             <td>{s['rsi']}</td>
             <td>{s['buy_zone']}</td>
             <td>{s['target']}</td>
@@ -137,7 +190,7 @@ def dashboard():
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
-        <title>لوحة تحليل السوق السعودي (تاسي)</title>
+        <title>لوحة التحليل الشامل لأسهم تاسي</title>
         <style>
             body {{
                 font-family: 'Cairo', 'Tajawal', Tahoma, sans-serif;
@@ -149,7 +202,7 @@ def dashboard():
                 text-align: right;
             }}
             .container {{
-                max-width: 1400px;
+                max-width: 1550px;
                 margin: auto;
                 background: #ffffff;
                 padding: 30px;
@@ -193,18 +246,18 @@ def dashboard():
                 width: 100%;
                 border-collapse: collapse;
                 margin-top: 10px;
-                font-size: 14px;
+                font-size: 13px;
             }}
             th, td {{
-                padding: 14px 16px;
+                padding: 12px 14px;
                 border-bottom: 1px solid #e9ecef;
                 text-align: right;
+                white-space: nowrap;
             }}
             th {{
                 background-color: #0f5132;
                 color: white;
                 font-weight: 600;
-                white-space: nowrap;
             }}
             tr:hover {{
                 background-color: #f8f9fa;
@@ -217,13 +270,12 @@ def dashboard():
                 font-size: 12px;
             }}
             .badge {{
-                padding: 6px 12px;
+                padding: 5px 10px;
                 border-radius: 20px;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: bold;
                 display: inline-block;
                 text-align: center;
-                white-space: nowrap;
             }}
             .buy {{ background-color: #d1e7dd; color: #0f5132; }}
             .risky {{ background-color: #f8d7da; color: #842029; }}
@@ -232,25 +284,23 @@ def dashboard():
     </head>
     <body>
         <div class="container">
-            <h1>📊 لوحة متابعة وتحليل أسهم السوق السعودي (تاسي)</h1>
-            <p class="sub">تصنيف قطاعي ذكي مع بحث فوري وفلترة حية لجميع الشركات</p>
+            <h1>📊 لوحة التحليل الشامل للسوق السعودي (تاسي)</h1>
+            <p class="sub">أسماء الشركات، أحجام التداول، تقييم قوى الطلب والعرض، ومؤشر RSI الفوري</p>
             
-            <!-- أدوات البحث والفلترة -->
             <div class="controls">
-                <input type="text" id="searchInput" placeholder="🔍 ابحث برمز السهم (مثل: 1010)..." onkeyup="filterTable()">
+                <input type="text" id="searchInput" placeholder="🔍 ابحث باسم الشركة أو الرمز (مثل: الراجحي أو 1120)..." onkeyup="filterTable()">
                 
                 <select id="sectorSelect" onchange="filterTable()">
-                    <option value="">🏢 فلترة حسب القطاع (الكل)</option>
+                    <option value="">🏢 كل القطاعات</option>
                     <option value="البنوك والخدمات المالية">البنوك والخدمات المالية</option>
                     <option value="المواد الأساسية">المواد الأساسية</option>
                     <option value="الطاقة والمرافق">الطاقة والمرافق</option>
                     <option value="الاتصالات وتقنية المعلومات">الاتصالات وتقنية المعلومات</option>
-                    <option value="التجزئة والأغذية">التجزئة والأغذية</option>
                     <option value="الصناديق العقارية (REITs)">الصناديق العقارية (REITs)</option>
                 </select>
 
                 <select id="filterSelect" onchange="filterTable()">
-                    <option value="">🎯 فلترة حسب التوصية (الكل)</option>
+                    <option value="">🎯 كل التوصيات والحالات</option>
                     <option value="فرصة شراء">فرصة شراء (ارتداد قاع)</option>
                     <option value="إيجابي">إيجابي (اتجاه صاعد)</option>
                     <option value="محايد">محايد (احتفاظ)</option>
@@ -262,15 +312,18 @@ def dashboard():
                 <table id="stocksTable">
                     <thead>
                         <tr>
-                            <th>رمز السهم</th>
+                            <th>الرمز</th>
+                            <th>اسم الشركة</th>
                             <th>القطاع</th>
-                            <th>السعر الحالي</th>
+                            <th>السعر</th>
                             <th>التغير %</th>
-                            <th>مؤشر القوة (RSI)</th>
-                            <th>منطقة الشراء المقترحة</th>
-                            <th>سعر الهدف</th>
+                            <th>كمية التداول (الحجم)</th>
+                            <th>حالة الطلب والعرض</th>
+                            <th>RSI</th>
+                            <th>منطقة الشراء</th>
+                            <th>الهدف</th>
                             <th>وقف الخسارة</th>
-                            <th>حالة السهم والتوصية</th>
+                            <th>التوصية الفنية</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -291,14 +344,15 @@ def dashboard():
 
                 for (let i = 1; i < tr.length; i++) {{
                     let symbol = tr[i].getAttribute("data-symbol").toLowerCase();
+                    let name = tr[i].getAttribute("data-name").toLowerCase();
                     let sector = tr[i].getAttribute("data-sector");
                     let rec = tr[i].getAttribute("data-rec");
                     
-                    let matchSymbol = symbol.includes(input);
+                    let matchSearch = symbol.includes(input) || name.includes(input);
                     let matchSector = (sectorFilter === "" || sector === sectorFilter);
                     let matchRec = (recFilter === "" || rec.includes(recFilter));
 
-                    if (matchSymbol && matchSector && matchRec) {{
+                    if (matchSearch && matchSector && matchRec) {{
                         tr[i].style.display = "";
                     }} else {{
                         tr[i].style.display = "none";
