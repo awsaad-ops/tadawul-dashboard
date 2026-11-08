@@ -7,40 +7,40 @@ import warnings
 warnings.filterwarnings("ignore")
 
 app = FastAPI(
-    title="لوحة تحليل السوق السعودي المدمجة",
-    description="تحليل متقدم وشامل لأسهم تاسي مع إجمالي الأسهم وأحجام التداول",
-    version="16.0"
+    title="لوحة تحليل السوق السعودي المتقدمة",
+    description="تحليل شامل ومصحح لأسهم تاسي مع التداول، الإجمالي، وأهداف التداول",
+    version="17.0"
 )
 
-# قاموس مفصل يضم رموز شركات تاسي وأسماءها العربية الرسمية
+# أسماء شركات تاسي الدقيقة والمصححة حسب القطاعات
 SECTORS_DATA = {
     "البنوك والخدمات المالية": {
         "name_ar": "البنوك",
         "stocks": {
             "1010": "بنك الرياض",
-            "1020": "الجزيرة",
-            "1060": "الاستثمار",
-            "1080": "الخليج الدولي",
-            "1111": "تداول السعودية",
+            "1020": "بنك الجزيرة",
+            "1060": "البنك السعودي للاستثمار",
+            "1080": "البنك العربي الوطني",
+            "1111": "مجموعة تداول السعودية",
             "1120": "مصرف الراجحي",
             "1150": "مصرف الإنماء",
-            "1180": "البنك الأهلي",
-            "1212": "البلد للاستثمار"
+            "1180": "البنك الأهلي السعودي",
+            "1212": "مجموعة أسترا الصناعية"
         }
     },
     "المواد الأساسية": {
         "name_ar": "المواد الأساسية",
         "stocks": {
             "2010": "سابك",
-            "2020": "سابك للمغذيات",
+            "2020": "سابك للمغذيات الزراعية",
             "2060": "التصنيع الوطنية",
-            "2080": "سبكيم",
-            "2090": "الوطنية للتسويق",
-            "2100": "مجموعة أسيج",
-            "2110": "الجبيل الكيماوية",
+            "2080": "سبكيم العالمية",
+            "2090": "شركة الجبس الأهلية",
+            "2100": "شركة الوفرة للتنمية",
+            "2110": "الكابلات السعودية",
             "2120": "بترورابغ",
-            "2130": "المتقدمة",
-            "2150": "الكيماويات المتخصصة"
+            "2130": "المتقدمة للبتروكيماويات",
+            "2150": "الزيوت العربية (لوبريف)"
         }
     },
     "الطاقة والمرافق": {
@@ -49,8 +49,8 @@ SECTORS_DATA = {
             "2222": "أرامكو السعودية",
             "1301": "أكوا باور",
             "1302": "الكهرباء السعودية",
-            "1303": "حفر الباطن للطاقة",
-            "1304": "الباحة للطاقة",
+            "1303": "الخدمات الأرضية",
+            "1304": "مجموعة اليمامة للحديد",
             "5110": "ساسكو"
         }
     },
@@ -60,7 +60,7 @@ SECTORS_DATA = {
             "7010": "إس تي سي (stc)",
             "7020": "زين السعودية",
             "7030": "عذيب للاتصالات",
-            "7040": "المتكاملة للاتصالات"
+            "7040": "شركة سلوشنز (مباركة)"
         }
     },
     "الصناديق العقارية (REITs)": {
@@ -70,10 +70,10 @@ SECTORS_DATA = {
             "4331": "تعليم ريت",
             "4332": "الرياض ريت",
             "4333": "الجزيرة ريت",
-            "4334": "الملكة ريت",
-            "4335": "التهامة ريت",
-            "4336": "بيلتون ريت",
-            "4337": "الإنماء ريت",
+            "4334": "المعذر ريت",
+            "4335": "سيكو السعودية ريت",
+            "4336": "دراية ريت",
+            "4337": "الإنماء ريت الفندقي",
             "4338": "مشاركة ريت",
             "4339": "الخبير ريت"
         }
@@ -89,6 +89,8 @@ def calculate_rsi(series, period=14):
     return rsi
 
 def format_large_number(num):
+    if not num or num == 0:
+        return "غير متوفر"
     if num >= 1_000_000_000:
         return f"{round(num / 1_000_000_000, 2)} مليار"
     elif num >= 1_000_000:
@@ -109,10 +111,9 @@ def fetch_market_data():
                 if hist.empty or len(hist) < 15:
                     continue
                 
-                # إجمالي عدد الأسهم المصدرة للشركة
                 info = stock.info
                 total_shares_raw = info.get('sharesOutstanding', 0)
-                total_shares = format_large_number(total_shares_raw) if total_shares_raw else "غير متوفر"
+                total_shares = format_large_number(total_shares_raw)
                 
                 hist['RSI'] = calculate_rsi(hist['Close'], period=14)
                 current_price = float(hist['Close'].iloc[-1])
@@ -121,25 +122,37 @@ def fetch_market_data():
                 volume = int(hist['Volume'].iloc[-1])
                 
                 latest_rsi_val = hist['RSI'].iloc[-1]
-                latest_rsi = round(float(latest_rsi_val), 2) if not pd.isna(latest_rsi_val) else 50.0
+                latest_rsi = round(float(latest_rsi_val), 1) if not pd.isna(latest_rsi_val) else 50.0
 
                 if volume > 500000 and change_percent > 0:
                     order_status = "🟢 شراء قوي"
                 elif volume > 500000 and change_percent < 0:
                     order_status = "🔴 ضغط بيع"
                 else:
-                    order_status = "🟡 سيولة هادئة"
+                    order_status = "🟡 سيولة متوازنة"
 
                 if latest_rsi <= 35:
+                    buy_zone = f"{round(current_price * 0.98, 2)} - {round(current_price, 2)}"
+                    target_price = f"{round(current_price * 1.05, 2)}"
+                    stop_loss = f"{round(current_price * 0.96, 2)}"
                     recommendation = "فرصة شراء (قاع)"
                     badge_class = "buy"
                 elif change_percent > 0.8 and latest_rsi < 68:
+                    buy_zone = f"السعر الحالي ({round(current_price, 2)})"
+                    target_price = f"{round(current_price * 1.04, 2)}"
+                    stop_loss = f"{round(current_price * 0.97, 2)}"
                     recommendation = "إيجابي (صاعد)"
                     badge_class = "buy"
                 elif latest_rsi >= 70 or change_percent < -1.5:
-                    recommendation = "مخاطرة / جني أرباح"
+                    buy_zone = "تشبع شراء"
+                    target_price = "جني أرباح"
+                    stop_loss = f"{round(current_price * 0.95, 2)}"
+                    recommendation = "مخاطرة / بيع"
                     badge_class = "risky"
                 else:
+                    buy_zone = f"قرب الدعم ({round(current_price * 0.97, 2)})"
+                    target_price = f"{round(current_price * 1.03, 2)}"
+                    stop_loss = f"{round(current_price * 0.97, 2)}"
                     recommendation = "محايد (احتفاظ)"
                     badge_class = "neutral"
 
@@ -153,6 +166,9 @@ def fetch_market_data():
                     "volume": f"{volume:,}",
                     "order_status": order_status,
                     "rsi": latest_rsi,
+                    "buy_zone": buy_zone,
+                    "target": target_price,
+                    "stop_loss": stop_loss,
                     "recommendation": recommendation,
                     "badge_class": badge_class
                 })
@@ -171,12 +187,15 @@ def dashboard():
             <td><b>{s['symbol']}</b></td>
             <td style="font-weight: bold; color: #0f5132;">{s['name']}</td>
             <td><span class="sector-tag">{s['sector']}</span></td>
-            <td>{s['current_price']}</td>
+            <td><b>{s['current_price']}</b></td>
             <td style="color: {'#198754' if s['change_percent'] >= 0 else '#dc3545'}; font-weight: bold;">{s['change_percent']}%</td>
-            <td style="color: #0d6efd; font-weight: bold;">{s['total_shares']}</td>
+            <td style="color: #0d6efd;">{s['total_shares']}</td>
             <td>{s['volume']}</td>
-            <td style="font-size: 12px;">{s['order_status']}</td>
+            <td style="font-size: 11px;">{s['order_status']}</td>
             <td>{s['rsi']}</td>
+            <td style="color: #198754; font-weight: 600;">{s['buy_zone']}</td>
+            <td style="color: #0d6efd; font-weight: 600;">{s['target']}</td>
+            <td style="color: #dc3545; font-weight: 600;">{s['stop_loss']}</td>
             <td><span class="badge {s['badge_class']}">{s['recommendation']}</span></td>
         </tr>
         """
@@ -186,7 +205,7 @@ def dashboard():
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
-        <title>لوحة تحليل السوق السعودي (تاسي)</title>
+        <title>لوحة تحليل السوق السعودي المتقدمة</title>
         <style>
             body {{
                 font-family: 'Cairo', 'Tajawal', Tahoma, sans-serif;
@@ -198,10 +217,10 @@ def dashboard():
                 text-align: right;
             }}
             .container {{
-                max-width: 1350px;
+                max-width: 1600px;
                 margin: auto;
                 background: #ffffff;
-                padding: 20px;
+                padding: 15px 20px;
                 border-radius: 10px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
             }}
@@ -209,30 +228,30 @@ def dashboard():
                 text-align: center;
                 color: #0f5132;
                 margin-bottom: 2px;
-                font-size: 22px;
+                font-size: 20px;
             }}
             p.sub {{
                 text-align: center;
                 color: #6c757d;
                 margin-bottom: 15px;
-                font-size: 13px;
+                font-size: 12px;
             }}
             .controls {{
                 display: flex;
                 gap: 10px;
-                margin-bottom: 20px;
+                margin-bottom: 15px;
                 flex-wrap: wrap;
                 background: #f8f9fa;
-                padding: 12px;
+                padding: 10px;
                 border-radius: 6px;
             }}
             .controls input, .controls select {{
-                padding: 8px 12px;
+                padding: 7px 10px;
                 border: 1px solid #ced4da;
                 border-radius: 5px;
-                font-size: 13px;
+                font-size: 12px;
                 flex: 1;
-                min-width: 180px;
+                min-width: 170px;
                 font-family: inherit;
             }}
             .table-container {{
@@ -243,10 +262,10 @@ def dashboard():
                 width: 100%;
                 border-collapse: collapse;
                 margin-top: 5px;
-                font-size: 12px;
+                font-size: 11.5px;
             }}
             th, td {{
-                padding: 10px 10px;
+                padding: 8px 6px;
                 border-bottom: 1px solid #e9ecef;
                 text-align: right;
                 white-space: nowrap;
@@ -255,6 +274,7 @@ def dashboard():
                 background-color: #0f5132;
                 color: white;
                 font-weight: 600;
+                font-size: 11.5px;
             }}
             tr:hover {{
                 background-color: #f8f9fa;
@@ -262,14 +282,14 @@ def dashboard():
             .sector-tag {{
                 background: #e2e3e5;
                 color: #383d41;
-                padding: 3px 6px;
-                border-radius: 4px;
-                font-size: 11px;
+                padding: 2px 5px;
+                border-radius: 3px;
+                font-size: 10px;
             }}
             .badge {{
-                padding: 4px 8px;
-                border-radius: 15px;
-                font-size: 11px;
+                padding: 3px 6px;
+                border-radius: 12px;
+                font-size: 10px;
                 font-weight: bold;
                 display: inline-block;
                 text-align: center;
@@ -281,11 +301,11 @@ def dashboard():
     </head>
     <body>
         <div class="container">
-            <h1>📊 لوحة متابعة وتحليل أسهم تاسي</h1>
-            <p class="sub">أسماء الشركات، إجمالي الأسهم، أحجام التداول، وتقييم السيولة اللحظي</p>
+            <h1>📊 لوحة المتابعة الشاملة لأسهم تاسي</h1>
+            <p class="sub">أسماء الشركات، الأسهم المصدرة، تداولات اليوم، مناطق الشراء، الهدف، ووقف الخسارة</p>
             
             <div class="controls">
-                <input type="text" id="searchInput" placeholder="🔍 بحث بالاسم أو الرمز (مثل: أرامكو أو 2222)..." onkeyup="filterTable()">
+                <input type="text" id="searchInput" placeholder="🔍 بحث بالاسم أو الرمز (مثل: الراجحي أو 1120)..." onkeyup="filterTable()">
                 
                 <select id="sectorSelect" onchange="filterTable()">
                     <option value="">🏢 كل القطاعات</option>
@@ -301,7 +321,7 @@ def dashboard():
                     <option value="فرصة شراء">فرصة شراء</option>
                     <option value="إيجابي">إيجابي (صاعد)</option>
                     <option value="محايد">محايد</option>
-                    <option value="مخاطرة">مخاطرة / جني أرباح</option>
+                    <option value="مخاطرة">مخاطرة / بيع</option>
                 </select>
             </div>
 
@@ -313,11 +333,14 @@ def dashboard():
                             <th>الشركة</th>
                             <th>القطاع</th>
                             <th>السعر</th>
-                            <th>التغير %</th>
+                            <th>التغير%</th>
                             <th>إجمالي الأسهم</th>
                             <th>التداول اليومي</th>
                             <th>حالة السيولة</th>
                             <th>RSI</th>
+                            <th>منطقة الشراء</th>
+                            <th>سعر الهدف</th>
+                            <th>وقف الخسارة</th>
                             <th>التوصية</th>
                         </tr>
                     </thead>
