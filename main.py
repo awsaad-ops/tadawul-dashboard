@@ -8,8 +8,8 @@ warnings.filterwarnings("ignore")
 
 app = FastAPI(
     title="لوحة تحليل السوق السعودي المتقدمة",
-    description="تحليل شامل ومصحح لأسهم تاسي مع التداول، الإجمالي، وأهداف التداول",
-    version="17.0"
+    description="تحليل شامل لأسهم تاسي متوافق مع الهواتف الذكية",
+    version="18.0"
 )
 
 # أسماء شركات تاسي الدقيقة والمصححة حسب القطاعات
@@ -60,7 +60,7 @@ SECTORS_DATA = {
             "7010": "إس تي سي (stc)",
             "7020": "زين السعودية",
             "7030": "عذيب للاتصالات",
-            "7040": "شركة سلوشنز (مباركة)"
+            "7040": "شركة سلوشنز"
         }
     },
     "الصناديق العقارية (REITs)": {
@@ -205,7 +205,8 @@ def dashboard():
     <html lang="ar" dir="rtl">
     <head>
         <meta charset="UTF-8">
-        <title>لوحة تحليل السوق السعودي المتقدمة</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لوحة تحليل السوق السعودي (تاسي)</title>
         <style>
             body {{
                 font-family: 'Cairo', 'Tajawal', Tahoma, sans-serif;
@@ -217,18 +218,20 @@ def dashboard():
                 text-align: right;
             }}
             .container {{
+                width: 100%;
                 max-width: 1600px;
                 margin: auto;
                 background: #ffffff;
-                padding: 15px 20px;
+                padding: 15px;
                 border-radius: 10px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+                box-sizing: border-box;
             }}
             h1 {{
                 text-align: center;
                 color: #0f5132;
                 margin-bottom: 2px;
-                font-size: 20px;
+                font-size: 18px;
             }}
             p.sub {{
                 text-align: center;
@@ -246,35 +249,46 @@ def dashboard():
                 border-radius: 6px;
             }}
             .controls input, .controls select {{
-                padding: 7px 10px;
+                padding: 8px 12px;
                 border: 1px solid #ced4da;
                 border-radius: 5px;
-                font-size: 12px;
+                font-size: 13px;
                 flex: 1;
-                min-width: 170px;
+                min-width: 100%;
+                box-sizing: border-box;
                 font-family: inherit;
+            }}
+            @media (min-width: 768px) {{
+                .controls input, .controls select {{
+                    min-width: 200px;
+                }}
             }}
             .table-container {{
                 width: 100%;
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                border: 1px solid #e9ecef;
+                border-radius: 6px;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 5px;
-                font-size: 11.5px;
+                white-space: nowrap;
+                font-size: 12px;
             }}
             th, td {{
-                padding: 8px 6px;
+                padding: 10px 8px;
                 border-bottom: 1px solid #e9ecef;
                 text-align: right;
-                white-space: nowrap;
             }}
             th {{
                 background-color: #0f5132;
                 color: white;
                 font-weight: 600;
-                font-size: 11.5px;
+                font-size: 12px;
+                position: sticky;
+                top: 0;
+                z-index: 2;
             }}
             tr:hover {{
                 background-color: #f8f9fa;
@@ -287,9 +301,9 @@ def dashboard():
                 font-size: 10px;
             }}
             .badge {{
-                padding: 3px 6px;
+                padding: 3px 8px;
                 border-radius: 12px;
-                font-size: 10px;
+                font-size: 11px;
                 font-weight: bold;
                 display: inline-block;
                 text-align: center;
@@ -301,11 +315,11 @@ def dashboard():
     </head>
     <body>
         <div class="container">
-            <h1>📊 لوحة المتابعة الشاملة لأسهم تاسي</h1>
-            <p class="sub">أسماء الشركات، الأسهم المصدرة، تداولات اليوم، مناطق الشراء، الهدف، ووقف الخسارة</p>
+            <h1>📊 لوحة متابعة أسهم تاسي</h1>
+            <p class="sub">تحليل فوري، سيولة، وأهداف الأسهم (متوافق مع الجوال)</p>
             
             <div class="controls">
-                <input type="text" id="searchInput" placeholder="🔍 بحث بالاسم أو الرمز (مثل: الراجحي أو 1120)..." onkeyup="filterTable()">
+                <input type="text" id="searchInput" placeholder="🔍 ابحث بالاسم أو الرمز..." onkeyup="filterTable()">
                 
                 <select id="sectorSelect" onchange="filterTable()">
                     <option value="">🏢 كل القطاعات</option>
